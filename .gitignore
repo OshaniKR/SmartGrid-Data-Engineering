@@ -46,3 +46,14 @@ Thumbs.db
 
 # Docker local volumes
 postgres_data/
+
+
+# ML generated artifacts
+models/
+
+# Python tooling
+.pytest_cache/
+.mypy_cache/
+
+# Docker local volumes
+postgres_data/
