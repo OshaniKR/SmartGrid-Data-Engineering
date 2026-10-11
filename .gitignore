@@ -57,3 +57,10 @@ models/
 
 # Docker local volumes
 postgres_data/
+
+
+# Spark streaming checkpoints
+spark/checkpoints/
+
+# Generated Parquet data lake
+data/lake/energy_readings/
