@@ -64,3 +64,6 @@ spark/checkpoints/
 
 # Generated Parquet data lake
 data/lake/energy_readings/
+# MLflow local tracking and generated artifacts
+mlruns/
+mlartifacts/
