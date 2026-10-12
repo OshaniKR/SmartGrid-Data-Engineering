@@ -67,3 +67,12 @@ data/lake/energy_readings/
 # MLflow local tracking and generated artifacts
 mlruns/
 mlartifacts/
+
+# Airflow local files
+airflow/logs/
+airflow/config/airflow.cfg
+airflow/.env
+airflow/plugins/__pycache__/
+
+# Local backup
+docker-compose.backup.yml
