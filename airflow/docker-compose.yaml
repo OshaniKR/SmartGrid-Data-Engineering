@@ -49,12 +49,17 @@ x-airflow-common:
   # In order to add custom dependencies or upgrade provider distributions you can use your extended image.
   # Comment the image line, place your Dockerfile in the directory where you placed the docker-compose.yaml
   # and uncomment the "build" line below, Then run `docker-compose build` to build the images.
-  image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:3.2.2}
-  # build: .
+  image: smartgrid-airflow:3.2.2
+  build: .
   env_file:
     - ${ENV_FILE_PATH:-.env}
   environment:
     &airflow-common-env
+    SMARTGRID_POSTGRES_HOST: smart-energy-postgres
+    SMARTGRID_POSTGRES_PORT: "5432"
+    SMARTGRID_POSTGRES_DB: ${POSTGRES_DB}
+    SMARTGRID_POSTGRES_USER: ${POSTGRES_USER}
+    SMARTGRID_POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
     AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
@@ -81,6 +86,7 @@ x-airflow-common:
     - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
     - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
     - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
+    - ..:/opt/smartgrid
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
     &airflow-common-depends-on
