@@ -84,7 +84,7 @@ def smartgrid_forecast_dag():
             ]
         )
 
-        
+
         model = mlflow.pyfunc.load_model(MODEL_PATH)
         prediction = float(model.predict(features)[0])
 
@@ -98,7 +98,6 @@ def smartgrid_forecast_dag():
             user=os.environ["SMARTGRID_POSTGRES_USER"],
             password=os.environ["SMARTGRID_POSTGRES_PASSWORD"],
         )
-
         try:
             with save_conn.cursor() as cur:
                 cur.execute(
@@ -110,6 +109,8 @@ def smartgrid_forecast_dag():
                         model_uri
                     )
                     VALUES (%s, %s, %s, %s)
+                    ON CONFLICT (household_id, input_timestamp)
+                    DO NOTHING
                     RETURNING id, forecasted_at;
                     """,
                     (
@@ -119,11 +120,37 @@ def smartgrid_forecast_dag():
                         MODEL_PATH,
                     ),
                 )
-                forecast_id, forecasted_at = cur.fetchone()
+
+                result = cur.fetchone()
+
+                if result is not None:
+                    forecast_id, forecasted_at = result
+                    print("New forecast saved successfully.")
+                else:
+                    cur.execute(
+                        """
+                        SELECT id, forecasted_at, predicted_consumption_kwh
+                        FROM forecast_results
+                        WHERE household_id = %s
+                          AND input_timestamp = %s;
+                        """,
+                        (household_id, timestamp.to_pydatetime()),
+                    )
+                    existing = cur.fetchone()
+
+                    if existing is None:
+                        raise RuntimeError(
+                            "Forecast was not inserted or found in the database."
+                        )
+
+                    forecast_id, forecasted_at, existing_prediction = existing
+                    prediction = float(existing_prediction)
+                    print("Forecast already exists; using the existing record.")
 
             save_conn.commit()
         finally:
             save_conn.close()
+
 
         print(f"Household: {household_id}")
         print(f"Reading timestamp: {timestamp}")
@@ -141,8 +168,8 @@ def smartgrid_forecast_dag():
 
 
     forecast_energy_consumption()
-    
-    
+
+
 
 
 smartgrid_forecast_dag()
