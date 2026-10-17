@@ -84,21 +84,65 @@ def smartgrid_forecast_dag():
             ]
         )
 
+        
         model = mlflow.pyfunc.load_model(MODEL_PATH)
         prediction = float(model.predict(features)[0])
 
-        print(f"Household: {reading.loc[0, 'household_id']}")
+        household_id = str(reading.loc[0, "household_id"])
+
+        # Save the prediction to PostgreSQL.
+        save_conn = psycopg2.connect(
+            host=os.environ["SMARTGRID_POSTGRES_HOST"],
+            port=int(os.environ["SMARTGRID_POSTGRES_PORT"]),
+            dbname=os.environ["SMARTGRID_POSTGRES_DB"],
+            user=os.environ["SMARTGRID_POSTGRES_USER"],
+            password=os.environ["SMARTGRID_POSTGRES_PASSWORD"],
+        )
+
+        try:
+            with save_conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO forecast_results (
+                        household_id,
+                        input_timestamp,
+                        predicted_consumption_kwh,
+                        model_uri
+                    )
+                    VALUES (%s, %s, %s, %s)
+                    RETURNING id, forecasted_at;
+                    """,
+                    (
+                        household_id,
+                        timestamp.to_pydatetime(),
+                        prediction,
+                        MODEL_PATH,
+                    ),
+                )
+                forecast_id, forecasted_at = cur.fetchone()
+
+            save_conn.commit()
+        finally:
+            save_conn.close()
+
+        print(f"Household: {household_id}")
         print(f"Reading timestamp: {timestamp}")
-        print(f"Actual consumption: not used as a model input")
         print(f"Predicted consumption: {prediction:.4f} kWh")
+        print(f"Saved forecast ID: {forecast_id}")
+        print(f"Forecast saved at: {forecasted_at}")
 
         return {
-            "household_id": str(reading.loc[0, "household_id"]),
+            "forecast_id": forecast_id,
+            "household_id": household_id,
             "timestamp": str(timestamp),
             "predicted_consumption_kwh": prediction,
+            "forecasted_at": str(forecasted_at),
         }
 
+
     forecast_energy_consumption()
+    
+    
 
 
 smartgrid_forecast_dag()
